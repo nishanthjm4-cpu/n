@@ -6,7 +6,7 @@ import os
 # Page configuration
 # ----------------------------
 st.set_page_config(
-    page_title="Social Media Analytics Dashboard",
+    page_title="Monthly Trends & Engagement Rate",
     layout="wide"
 )
 
@@ -18,78 +18,65 @@ def load_data():
     filename = "social_media_engagement_enhanced (1).csv"
 
     if not os.path.exists(filename):
-        st.error("CSV file not found. Please upload 'social_media_engagement_enhanced (1).csv'")
+        st.error("CSV file not found. Upload 'social_media_engagement_enhanced (1).csv'")
         st.stop()
 
     df = pd.read_csv(filename)
 
     # Date processing
     df["date"] = pd.to_datetime(df["date"])
-    df["year"] = df["date"].dt.year
-    df["month"] = df["date"].dt.to_period("M")
-    df["hour"] = df["date"].dt.hour
+    df["year_month"] = df["date"].dt.to_period("M")
 
     # Engagement calculation
     df["engagement"] = df["likes"] + df["comments"] + df["shares"]
 
-    # Campaign ROI (assumed cost)
-    df["campaign_cost"] = 5000
-    df["roi"] = ((df["engagement"] - df["campaign_cost"]) / df["campaign_cost"]) * 100
+    # Engagement Rate (%)
+    df["engagement_rate"] = (df["engagement"] / df["views"]) * 100
 
     return df
 
 df = load_data()
 
 # ----------------------------
-# Dashboard title
+# DASHBOARD TITLE
 # ----------------------------
-st.title("📊 Social Media Engagement Analytics")
-st.write("Campaign ROI, Optimal Posting Time, and Monthly Trends")
+st.title("📊 Monthly Trends & Engagement Rate Analysis")
 
-# ----------------------------
-# ROI SECTION
-# ----------------------------
-st.subheader("💰 Campaign ROI by Platform")
+# ======================================================
+# 1️⃣ MONTHLY ENGAGEMENT TREND (PER PLATFORM)
+# ======================================================
+st.subheader("📈 Monthly Engagement Trend (Platform-wise)")
 
-roi_platform = df.groupby("platform")["roi"].mean()
+platforms = df["platform"].unique()
 
-st.bar_chart(roi_platform)
-
-best_roi_platform = roi_platform.idxmax()
-st.metric("🏆 Best ROI Platform", best_roi_platform)
-
-# ----------------------------
-# OPTIMAL POSTING TIME (PER PLATFORM)
-# ----------------------------
-st.subheader("⏰ Optimal Posting Time (Per Platform)")
-
-optimal_time = (
-    df.groupby(["platform", "hour"])["engagement"]
-    .mean()
-    .reset_index()
-    .loc[lambda x: x.groupby("platform")["engagement"].idxmax()]
-)
-
-st.dataframe(optimal_time[["platform", "hour"]])
-
-# Line plot for each platform
-for platform in df["platform"].unique():
-    st.write(f"📱 {platform} – Engagement Trend by Hour")
+for platform in platforms:
+    st.write(f"📱 {platform}")
     platform_df = df[df["platform"] == platform]
-    st.line_chart(
-        platform_df.groupby("hour")["engagement"].mean()
+
+    monthly_trend = (
+        platform_df.groupby("year_month")["engagement"]
+        .sum()
     )
 
-# ----------------------------
-# MONTHLY TREND (3 YEARS)
-# ----------------------------
-st.subheader("📈 Monthly Engagement Trend (3 Years)")
+    st.line_chart(monthly_trend)
 
-monthly_trend = df.groupby("month")["engagement"].sum()
-st.line_chart(monthly_trend)
+# ======================================================
+# 2️⃣ ENGAGEMENT RATE (%)
+# ======================================================
+st.subheader("💬 Engagement Rate (%) by Platform")
+
+engagement_rate_platform = (
+    df.groupby("platform")["engagement_rate"]
+    .mean()
+)
+
+st.bar_chart(engagement_rate_platform)
+
+best_engagement_platform = engagement_rate_platform.idxmax()
+st.metric("🏆 Highest Engagement Rate Platform", best_engagement_platform)
 
 # ----------------------------
 # DATA TABLE
 # ----------------------------
-with st.expander("📄 View Full Dataset"):
+with st.expander("📄 View Data"):
     st.dataframe(df)
